@@ -1,34 +1,67 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LevelUp Learning - Gamified Education Platform</title>
+    <!-- Load Tailwind CSS for modern, responsive styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Define a custom font for better aesthetics */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-25px); }
+            50% { transform: translateY(-20px); }
         }
-        .animate-bounce {
-            animation: bounce 1s infinite;
+        .animate-bounce-fast {
+            animation: bounce 0.6s infinite;
         }
-        * {
+
+        @keyframes confetti-fall {
+            0% { transform: translate(0, -100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translate(0, 100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--color);
+            border-radius: 50%;
+            opacity: 0;
+            animation: confetti-fall var(--duration) linear infinite;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            background-color: #0d0c1d; /* Deep space background */
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+
+        /* Custom scrollbar for a sleek look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #8b5cf6; /* Violet */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background-color: #1f2937; /* Dark gray */
         }
     </style>
 </head>
 <body>
+    <!-- Main application container -->
     <div id="app"></div>
 
     <script type="module">
-        // Lucide icons as SVG
+        // --- DATA STRUCTURES ---
+
+        // Lucide icons defined as SVG strings for easy inline use
         const icons = {
             Rocket: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.25-2 5-2 5s3.75-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
             Zap: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
@@ -40,262 +73,477 @@
             Brain: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>'
         };
 
-        // State
-        let state = {
-            currentLevel: 1,
-            xp: 0,
-            streak: 3,
-            selectedSubject: null,
-            quizActive: false,
-            currentQuestion: 0,
-            score: 0,
-            showCelebration: false
-        };
-
         const xpToNextLevel = 100;
+        const XP_PER_QUESTION = 25;
 
         const subjects = [
-            { id: 'math', name: '数学探险', icon: '🔢', color: 'from-blue-500 to-cyan-500', levels: 12, description: '通过解谜和挑战掌握数学概念' },
-            { id: 'science', name: '科学实验室', icon: '🔬', color: 'from-purple-500 to-pink-500', levels: 10, description: '探索神奇的科学世界' },
-            { id: 'coding', name: '编程王国', icon: '💻', color: 'from-green-500 to-emerald-500', levels: 15, description: '学习编程，创造未来' },
-            { id: 'language', name: '语言大师', icon: '📚', color: 'from-orange-500 to-red-500', levels: 20, description: '提升你的语言技能' }
+            { id: 'math', name: 'Math Adventure', icon: '🔢', color: 'from-blue-500 to-cyan-500', levels: 12, description: 'Master mathematical concepts through puzzles and challenges.' },
+            { id: 'science', name: 'Science Lab', icon: '🔬', color: 'from-purple-500 to-pink-500', levels: 10, description: 'Explore the amazing world of chemistry, physics, and biology.' },
+            { id: 'coding', name: 'Code Kingdom', icon: '💻', color: 'from-green-500 to-emerald-500', levels: 15, description: 'Learn programming fundamentals and build your digital future.' },
+            { id: 'language', name: 'Language Master', icon: '📚', color: 'from-orange-500 to-red-500', levels: 20, description: 'Boost your linguistic skills and conversational fluency.' }
         ];
 
         const sampleQuestions = [
-            { question: '如果你有5个苹果，吃掉2个，还剩几个？', options: ['2个', '3个', '5个', '7个'], correct: 1 },
-            { question: '下列哪个是编程语言？', options: ['法语', 'Python', '西班牙语', '拉丁语'], correct: 1 },
-            { question: '地球上最大的生物是什么？', options: ['大象', '蓝鲸', '长颈鹿', '恐龙'], correct: 1 }
+            { question: 'If a triangle has angles of 60° and 90°, what is the third angle?', options: ['30°', '45°', '90°', '60°'], correct: 0, subject: 'math' },
+            { question: 'Which of the following is a dynamically-typed programming language?', options: ['C++', 'Java', 'Python', 'Rust'], correct: 2, subject: 'coding' },
+            { question: 'What is the powerhouse of the cell?', options: ['Nucleus', 'Mitochondria', 'Ribosome', 'Vacuole'], correct: 1, subject: 'science' },
+            { question: 'Identify the plural noun in the following sentence: "The children played with two toys."', options: ['played', 'children', 'two', 'toys'], correct: 3, subject: 'language' }
         ];
 
+        // --- GLOBAL STATE ---
+        let state = {
+            currentLevel: 1,
+            xp: 75, // Starting with some XP for a better demo
+            streak: 3,
+            selectedSubject: null,
+            quizActive: false,
+            currentQuestionIndex: 0,
+            correctAnswers: 0,
+            showCelebration: false,
+            isAnswered: false, // Tracks if an answer has been selected for feedback
+            isCorrect: null,   // null, true, or false for coloring
+            quizFinished: false // Triggers the final results screen
+        };
+
+        // --- CORE FUNCTIONS ---
+
+        /**
+         * Initiates the quiz state for a selected subject.
+         * @param {Object} subject - The selected subject object.
+         */
         function startQuiz(subject) {
             state.selectedSubject = subject;
             state.quizActive = true;
-            state.currentQuestion = 0;
-            state.score = 0;
+            state.currentQuestionIndex = 0;
+            state.correctAnswers = 0;
+            state.quizFinished = false;
+            state.isAnswered = false;
+            state.isCorrect = null;
             render();
         }
 
+        /**
+         * Processes the user's answer choice, provides visual feedback, and advances the quiz.
+         * @param {number} optionIndex - The index of the selected option (0-indexed).
+         */
         function handleAnswer(optionIndex) {
-            const isCorrect = optionIndex === sampleQuestions[state.currentQuestion].correct;
+            // Guard clause to prevent double-answering
+            if (state.isAnswered) return;
+
+            const currentQuestion = sampleQuestions[state.currentQuestionIndex];
+            const isAnswerCorrect = optionIndex === currentQuestion.correct;
             
-            if (isCorrect) {
-                state.score++;
-                const earnedXP = 25;
-                state.xp += earnedXP;
-                
-                if (state.xp >= xpToNextLevel) {
-                    state.currentLevel++;
-                    state.xp -= xpToNextLevel;
-                    state.showCelebration = true;
-                    setTimeout(() => {
-                        state.showCelebration = false;
-                        render();
-                    }, 3000);
-                }
+            state.isAnswered = true;
+            state.isCorrect = isAnswerCorrect;
+
+            if (isAnswerCorrect) {
+                state.correctAnswers++;
+                gainXP(XP_PER_QUESTION);
             }
 
+            // After showing feedback, move to the next step
             setTimeout(() => {
-                if (state.currentQuestion < sampleQuestions.length - 1) {
-                    state.currentQuestion++;
+                state.isAnswered = false;
+                state.isCorrect = null;
+                
+                if (state.currentQuestionIndex < sampleQuestions.length - 1) {
+                    // Advance to the next question
+                    state.currentQuestionIndex++;
                 } else {
+                    // Quiz is finished
                     state.quizActive = false;
-                    state.selectedSubject = null;
+                    state.quizFinished = true;
                 }
                 render();
-            }, 1000);
+            }, 1500); // 1.5 seconds delay to show feedback
         }
 
-        function backToHome() {
+        /**
+         * Adds XP and handles level up logic.
+         * @param {number} amount - The amount of XP to add.
+         */
+        function gainXP(amount) {
+            state.xp += amount;
+            
+            if (state.xp >= xpToNextLevel) {
+                // Level Up sequence
+                state.currentLevel++;
+                state.xp -= xpToNextLevel; // Carry over remaining XP
+                state.showCelebration = true;
+                
+                // Stop celebration after 3 seconds
+                setTimeout(() => {
+                    state.showCelebration = false;
+                    render();
+                }, 3000);
+            }
+        }
+
+        /**
+         * Resets the view to the main dashboard.
+         */
+        function backToDashboard() {
             state.quizActive = false;
             state.selectedSubject = null;
+            state.quizFinished = false;
             render();
         }
 
-        function render() {
+        // --- RENDERING FUNCTIONS (Modular Components) ---
+
+        /**
+         * Renders the main user dashboard/stats section.
+         * @returns {string} HTML string for the dashboard header.
+         */
+        function renderDashboardHeader() {
             const xpProgress = (state.xp / xpToNextLevel) * 100;
-            const achievements = [
-                { id: 1, name: '初学者', icon: '🌱', unlocked: true },
-                { id: 2, name: '连胜3天', icon: '🔥', unlocked: state.streak >= 3 },
-                { id: 3, name: '达到10级', icon: '⭐', unlocked: state.currentLevel >= 10 },
-                { id: 4, name: '完美得分', icon: '💯', unlocked: false }
-            ];
 
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-6">
-                    ${state.showCelebration ? `
-                        <div class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-                            <div class="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl p-12 shadow-2xl animate-bounce">
-                                <div class="text-6xl mb-4">🎉</div>
-                                <div class="text-4xl font-bold text-white">升级了！</div>
-                                <div class="text-2xl text-white mt-2">现在是 Level ${state.currentLevel}！</div>
+            return `
+                <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-white/20 shadow-2xl">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+                                <div class="w-8 h-8 text-white">${icons.Rocket}</div>
+                            </div>
+                            <div>
+                                <h1 class="text-3xl font-bold text-white mb-1">LevelUp Learning</h1>
+                                <p class="text-white/70">Make Learning Playful!</p>
                             </div>
                         </div>
-                    ` : ''}
-
-                    <div class="max-w-7xl mx-auto">
-                        <!-- Header -->
-                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-white/20">
-                            <div class="flex items-center justify-between flex-wrap gap-4">
-                                <div class="flex items-center gap-4">
-                                    <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-4">
-                                        <div class="w-8 h-8 text-white">${icons.Rocket}</div>
-                                    </div>
-                                    <div>
-                                        <h1 class="text-3xl font-bold text-white mb-1">LevelUp Learning</h1>
-                                        <p class="text-white/70">让学习像玩游戏一样有趣！</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex gap-4">
-                                    <div class="bg-white/10 backdrop-blur rounded-xl px-6 py-3 border border-white/20">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-5 h-5 text-yellow-400">${icons.Zap}</div>
-                                            <span class="text-white font-bold text-lg">${state.streak}天连胜</span>
-                                        </div>
-                                    </div>
-                                    <div class="bg-white/10 backdrop-blur rounded-xl px-6 py-3 border border-white/20">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-5 h-5 text-yellow-400">${icons.Trophy}</div>
-                                            <span class="text-white font-bold text-lg">Level ${state.currentLevel}</span>
-                                        </div>
-                                    </div>
+                        
+                        <div class="flex gap-4">
+                            <div class="bg-white/10 backdrop-blur rounded-xl px-6 py-3 border border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-5 h-5 text-yellow-400">${icons.Zap}</div>
+                                    <span class="text-white font-bold text-lg">${state.streak} Day Streak</span>
                                 </div>
                             </div>
-
-                            <div class="mt-6">
-                                <div class="flex justify-between mb-2">
-                                    <span class="text-white/70 text-sm">经验值进度</span>
-                                    <span class="text-white font-semibold">${state.xp} / ${xpToNextLevel} XP</span>
-                                </div>
-                                <div class="h-4 bg-white/10 rounded-full overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-green-400 to-blue-500 transition-all duration-500 ease-out rounded-full" style="width: ${xpProgress}%"></div>
+                            <div class="bg-white/10 backdrop-blur rounded-xl px-6 py-3 border border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-5 h-5 text-green-400">${icons.Trophy}</div>
+                                    <span class="text-white font-bold text-lg">Level ${state.currentLevel}</span>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        ${!state.quizActive ? `
-                            <!-- Subjects Grid -->
-                            <div class="grid md:grid-cols-2 gap-6 mb-6">
-                                ${subjects.map(subject => `
-                                    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20 hover:bg-white/20 transition-all cursor-pointer transform hover:scale-105" onclick="startQuiz(${JSON.stringify(subject).replace(/"/g, '&quot;')})">
-                                        <div class="flex items-start justify-between mb-4">
-                                            <div class="flex items-center gap-4">
-                                                <div class="bg-gradient-to-br ${subject.color} rounded-2xl p-4 text-4xl">
-                                                    ${subject.icon}
-                                                </div>
-                                                <div>
-                                                    <h3 class="text-2xl font-bold text-white mb-1">${subject.name}</h3>
-                                                    <p class="text-white/60 text-sm">${subject.description}</p>
-                                                </div>
-                                            </div>
-                                            <div class="w-6 h-6 text-white/40">${icons.Target}</div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-4 h-4 text-white/60">${icons.BookOpen}</div>
-                                                <span class="text-white/80 text-sm">${subject.levels} 个关卡</span>
-                                            </div>
-                                            <button class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-semibold transition-all">
-                                                开始学习 →
-                                            </button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-
-                            <!-- Stats and Achievements -->
-                            <div class="grid md:grid-cols-2 gap-6">
-                                <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
-                                    <div class="flex items-center gap-3 mb-4">
-                                        <div class="w-6 h-6 text-green-400">${icons.TrendingUp}</div>
-                                        <h3 class="text-xl font-bold text-white">今日进度</h3>
-                                    </div>
-                                    <div class="space-y-4">
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-white/70">完成的关卡</span>
-                                            <span class="text-white font-bold text-lg">5 / 10</span>
-                                        </div>
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-white/70">获得经验值</span>
-                                            <span class="text-green-400 font-bold text-lg">+${state.xp} XP</span>
-                                        </div>
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-white/70">学习时长</span>
-                                            <span class="text-white font-bold text-lg">45 分钟</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20">
-                                    <div class="flex items-center gap-3 mb-4">
-                                        <div class="w-6 h-6 text-yellow-400">${icons.Award}</div>
-                                        <h3 class="text-xl font-bold text-white">成就徽章</h3>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        ${achievements.map(achievement => `
-                                            <div class="bg-white/5 rounded-xl p-4 text-center transition-all ${achievement.unlocked ? 'border-2 border-yellow-400' : 'opacity-50'}">
-                                                <div class="text-3xl mb-2">${achievement.icon}</div>
-                                                <div class="text-white text-sm font-semibold">${achievement.name}</div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            </div>
-                        ` : `
-                            <!-- Quiz Interface -->
-                            <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
-                                <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
-                                    <div class="flex items-center gap-4">
-                                        <div class="bg-gradient-to-br ${state.selectedSubject.color} rounded-2xl p-4 text-4xl">
-                                            ${state.selectedSubject.icon}
-                                        </div>
-                                        <div>
-                                            <h2 class="text-2xl font-bold text-white">${state.selectedSubject.name}</h2>
-                                            <p class="text-white/60">问题 ${state.currentQuestion + 1} / ${sampleQuestions.length}</p>
-                                        </div>
-                                    </div>
-                                    <div class="bg-white/20 rounded-xl px-6 py-3">
-                                        <span class="text-white font-bold">得分: ${state.score}</span>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white/5 rounded-2xl p-8 mb-6">
-                                    <h3 class="text-2xl text-white font-bold mb-6">
-                                        ${sampleQuestions[state.currentQuestion].question}
-                                    </h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        ${sampleQuestions[state.currentQuestion].options.map((option, index) => `
-                                            <button onclick="handleAnswer(${index})" class="bg-white/10 hover:bg-white/20 text-white p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 border-2 border-white/20 hover:border-white/40">
-                                                ${option}
-                                            </button>
-                                        `).join('')}
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-between items-center">
-                                    <button onclick="backToHome()" class="text-white/60 hover:text-white transition-all">
-                                        ← 返回主页
-                                    </button>
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-5 h-5 text-purple-400">${icons.Brain}</div>
-                                        <span class="text-white/80">思考并选择你的答案</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `}
+                    <div class="mt-6">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-white/70 text-sm">XP Progress to Next Level</span>
+                            <span class="text-white font-semibold">${state.xp} / ${xpToNextLevel} XP</span>
+                        </div>
+                        <div class="h-4 bg-white/10 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-green-400 to-blue-500 transition-all duration-500 ease-out rounded-full" style="width: ${xpProgress}%"></div>
+                        </div>
                     </div>
                 </div>
             `;
         }
 
-        // Make functions global
+        /**
+         * Renders the subject selection grid.
+         * @returns {string} HTML string for the subject grid.
+         */
+        function renderSubjectGrid() {
+             return `
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    ${subjects.map(subject => `
+                        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20 hover:bg-white/20 transition-all cursor-pointer transform hover:scale-[1.02] shadow-xl" onclick="startQuiz(${JSON.stringify(subject).replace(/"/g, '&quot;')})">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-gradient-to-br ${subject.color} rounded-2xl p-4 text-4xl shadow-xl">
+                                        ${subject.icon}
+                                    </div>
+                                    <div>
+                                        <h3 class="text-2xl font-bold text-white mb-1">${subject.name}</h3>
+                                        <p class="text-white/60 text-sm">${subject.description}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-4 h-4 text-white/60">${icons.BookOpen}</div>
+                                    <span class="text-white/80 text-sm">${subject.levels} Levels Available</span>
+                                </div>
+                                <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-md">
+                                    Start Quest →
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Achievements & Activity Panel -->
+                ${renderActivityPanel()}
+            `;
+        }
+
+        /**
+         * Renders the Activity and Achievements sidebar content.
+         * @returns {string} HTML string.
+         */
+        function renderActivityPanel() {
+            const achievements = [
+                { id: 1, name: 'Rookie Learner', icon: '🌱', unlocked: true },
+                { id: 2, name: '3-Day Streak', icon: '🔥', unlocked: state.streak >= 3 },
+                { id: 3, name: 'Level 10 Master', icon: '⭐', unlocked: state.currentLevel >= 10 },
+                { id: 4, name: 'Quiz Whiz (100%)', icon: '💯', unlocked: false }
+            ];
+
+            return `
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20 shadow-xl">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-6 h-6 text-green-400">${icons.TrendingUp}</div>
+                            <h3 class="text-xl font-bold text-white">Today's Progress</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-white/70">Quests Completed</span>
+                                <span class="text-white font-bold text-lg">2 / 5</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-white/70">XP Earned</span>
+                                <span class="text-green-400 font-bold text-lg">+${state.xp} XP</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-white/70">Time Spent</span>
+                                <span class="text-white font-bold text-lg">45 minutes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 border border-white/20 shadow-xl">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-6 h-6 text-yellow-400">${icons.Award}</div>
+                            <h3 class="text-xl font-bold text-white">Achievements</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            ${achievements.map(achievement => `
+                                <div class="bg-white/5 rounded-xl p-4 text-center transition-all ${achievement.unlocked ? 'border-2 border-yellow-400' : 'opacity-50'}">
+                                    <div class="text-3xl mb-2">${achievement.icon}</div>
+                                    <div class="text-white text-sm font-semibold">${achievement.name}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        /**
+         * Renders the active quiz interface.
+         * @returns {string} HTML string for the quiz.
+         */
+        function renderQuizInterface() {
+            const currentQuestion = sampleQuestions[state.currentQuestionIndex];
+            const feedbackClass = state.isAnswered ? 
+                (state.isCorrect ? 'bg-green-600/20 border-green-400/80' : 'bg-red-600/20 border-red-400/80') : 
+                '';
+
+            return `
+                <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-2xl">
+                    <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-gradient-to-br ${state.selectedSubject.color} rounded-2xl p-4 text-4xl shadow-md">
+                                ${state.selectedSubject.icon}
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold text-white">${state.selectedSubject.name} Quest</h2>
+                                <p class="text-white/60">Question ${state.currentQuestionIndex + 1} of ${sampleQuestions.length}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white/20 rounded-xl px-6 py-3">
+                            <span class="text-white font-bold">Current Score: ${state.correctAnswers}</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 rounded-2xl p-8 mb-6 ${feedbackClass} transition-all duration-300 border-2 border-transparent">
+                        <h3 class="text-3xl text-white font-bold mb-8">
+                            ${currentQuestion.question}
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${currentQuestion.options.map((option, index) => {
+                                let optionClass = "bg-white/10 hover:bg-white/20 border-white/20 hover:border-white/40";
+                                let isDisabled = '';
+
+                                if (state.isAnswered) {
+                                    // Feedback styling is active
+                                    isDisabled = 'disabled';
+                                    if (index === currentQuestion.correct) {
+                                        // Correct answer highlight
+                                        optionClass = 'bg-green-700/50 border-green-500 shadow-lg';
+                                    } else if (index !== currentQuestion.correct && index === optionIndex) {
+                                        // Incorrect answer selected by user
+                                        optionClass = 'bg-red-700/50 border-red-500 shadow-lg';
+                                    } else {
+                                        // Other unselected options fade
+                                        optionClass = 'bg-white/5 border-white/10 opacity-60';
+                                    }
+                                }
+
+                                return `
+                                    <button 
+                                        onclick="handleAnswer(${index})" 
+                                        class="${optionClass} text-white p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 border-2" 
+                                        ${isDisabled}>
+                                        ${option}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <button onclick="backToDashboard()" class="text-white/60 hover:text-white transition-all flex items-center gap-2">
+                            ${icons.Brain} Back to Dashboard
+                        </button>
+                        <span class="text-white/80">Select your answer to continue.</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Renders the final quiz results screen.
+         * @returns {string} HTML string for the results.
+         */
+        function renderQuizResult() {
+            const totalQuestions = sampleQuestions.length;
+            const percentage = ((state.correctAnswers / totalQuestions) * 100).toFixed(0);
+            const passed = state.correctAnswers / totalQuestions >= 0.75; // 75% pass rate
+            const badgeIcon = passed ? '🏆' : '📚';
+            const message = passed ? 
+                'Excellent work, Scholar! You mastered this quest and earned a bonus!' : 
+                'Good effort! Review the material and try again to master this subject.';
+            const colorClass = passed ? 'from-yellow-400 to-orange-500' : 'from-gray-400 to-slate-500';
+
+            return `
+                <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-10 border border-white/20 shadow-2xl text-center max-w-2xl mx-auto">
+                    <div class="bg-gradient-to-br ${colorClass} rounded-full p-6 inline-block mb-6 shadow-xl">
+                        <div class="text-6xl">${badgeIcon}</div>
+                    </div>
+                    
+                    <h2 class="text-4xl font-extrabold text-white mb-4">Quest Complete!</h2>
+                    <p class="text-white/70 text-xl mb-8">${message}</p>
+
+                    <div class="grid grid-cols-3 gap-4 bg-white/5 p-4 rounded-xl mb-8">
+                        <div>
+                            <p class="text-white/70 text-sm">Correct</p>
+                            <p class="text-green-400 text-3xl font-bold">${state.correctAnswers}</p>
+                        </div>
+                        <div class="border-x border-white/10">
+                            <p class="text-white/70 text-sm">Total XP Earned</p>
+                            <p class="text-indigo-400 text-3xl font-bold">${state.correctAnswers * XP_PER_QUESTION} XP</p>
+                        </div>
+                        <div>
+                            <p class="text-white/70 text-sm">Accuracy</p>
+                            <p class="text-yellow-400 text-3xl font-bold">${percentage}%</p>
+                        </div>
+                    </div>
+
+                    <button onclick="backToDashboard()" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg transform hover:scale-[1.05]">
+                        Return to Dashboard
+                    </button>
+                </div>
+            `;
+        }
+
+        /**
+         * Renders the celebratory overlay when the user levels up.
+         * @returns {string} HTML string for the celebration.
+         */
+        function renderCelebration() {
+            const confettiColors = ['#f97316', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6'];
+            let confettiHTML = '';
+
+            // Generate many confetti particles with random positions and durations
+            for (let i = 0; i < 50; i++) {
+                const color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+                const duration = (Math.random() * 2) + 1; // 1 to 3 seconds
+                const left = Math.random() * 100;
+                const size = (Math.random() * 5) + 5;
+                const delay = Math.random() * 0.5;
+
+                confettiHTML += `
+                    <div class="confetti" 
+                         style="--color: ${color}; --duration: ${duration}s; left: ${left}vw; width: ${size}px; height: ${size}px; animation-delay: ${delay}s;">
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="fixed inset-0 flex items-center justify-center z-50">
+                    <!-- Confetti background layer -->
+                    <div class="absolute inset-0 overflow-hidden">${confettiHTML}</div>
+
+                    <!-- Celebration Modal -->
+                    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl p-12 shadow-2xl animate-bounce-fast max-w-md mx-auto relative z-10">
+                        <div class="text-7xl mb-4">🎉</div>
+                        <div class="text-4xl font-extrabold text-white">LEVEL UP!</div>
+                        <div class="text-2xl text-white mt-2">You are now Level ${state.currentLevel}!</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * The main rendering function, called whenever the state changes.
+         */
+        function render() {
+            const app = document.getElementById('app');
+            let contentHTML = '';
+
+            // 1. Render Header (always visible)
+            contentHTML += renderDashboardHeader();
+
+            // 2. Render Main Content based on state
+            if (state.quizActive) {
+                contentHTML += renderQuizInterface();
+            } else if (state.quizFinished) {
+                contentHTML += renderQuizResult();
+            } else {
+                contentHTML += renderSubjectGrid();
+            }
+
+            // 3. Wrap everything in the main container
+            app.innerHTML = `
+                <div class="min-h-screen p-6">
+                    <div class="max-w-7xl mx-auto">
+                        ${contentHTML}
+                    </div>
+                </div>
+            `;
+
+            // 4. Render Celebration Overlay if active (must be outside the main content flow)
+            if (state.showCelebration) {
+                // Prepend to body for absolute positioning
+                const body = document.body;
+                let celebrationDiv = document.getElementById('celebration-overlay');
+                
+                if (!celebrationDiv) {
+                    celebrationDiv = document.createElement('div');
+                    celebrationDiv.id = 'celebration-overlay';
+                    body.appendChild(celebrationDiv);
+                }
+                celebrationDiv.innerHTML = renderCelebration();
+            } else {
+                 // Clean up the overlay if it exists but is no longer needed
+                const celebrationDiv = document.getElementById('celebration-overlay');
+                if (celebrationDiv) {
+                    celebrationDiv.remove();
+                }
+            }
+        }
+
+        // --- EXPOSE FUNCTIONS GLOBALLY ---
+        // This is necessary because HTML elements use inline 'onclick' handlers.
         window.startQuiz = startQuiz;
         window.handleAnswer = handleAnswer;
-        window.backToHome = backToHome;
+        window.backToDashboard = backToDashboard;
 
-        // Initial render
+        // Initial render when the script loads
         render();
     </script>
 </body>
